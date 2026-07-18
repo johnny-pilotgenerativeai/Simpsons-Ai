@@ -11,7 +11,7 @@ import ollama
 
 # ── Load settings ─────────────────────────────────────────────────────────────
 try:
-    import settings as _cfg
+    import Settings as _cfg
     MODEL             = _cfg.MODEL
     MAX_TRIGGER_DEPTH = _cfg.TRIGGER_DEPTH
     _CHAR_ENABLED     = _cfg.CHARACTERS
@@ -188,14 +188,42 @@ def _find_mentioned_names(text: str, exclude: list[str],
 class SimpsonsCharacter:
     """Base class for every Simpsons character AI."""
 
+    # Director callback — set by SpringfieldChat after ALL_CHARS is built
+    _director_callback = None   # callable(char_key, char_name, response)
+
     def __init__(self, name: str, system_prompt: str, color: str = "\033[0m"):
         self.name     = name
         self.color    = color
         self.reset    = "\033[0m"
         self.location = "Springfield"
         self.activity = ""
+        # Inject universal first-person rule into every character
+        full_prompt = system_prompt + """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+UNIVERSAL RULES — APPLY TO EVERY SINGLE RESPONSE, NO EXCEPTIONS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. FIRST PERSON ALWAYS: Speak entirely in first person.
+   Say "I think...", "I feel...", "I'm going to...", "I want..."
+   NEVER narrate yourself: NOT "*Homer reaches for a donut*"
+   NEVER use third person about yourself: NOT "Homer says..."
+   NEVER describe your own actions in brackets, asterisks, or parentheses.
+   RIGHT:  "Mmm... I could really go for a donut right now."
+   WRONG:  "*Homer reaches for a donut* 'Mmm donut.'"
+
+2. NO STAGE DIRECTIONS: Do not write your own physical actions as narration.
+   If you want to convey an action, describe it through your words and tone.
+   RIGHT:  "D'oh! I just knocked that over, didn't I."
+   WRONG:  "*knocks thing over* D'oh!"
+
+3. NO LOCATION NARRATION: Never state where you are in brackets.
+   WRONG: "(Kitchen, 742 Evergreen Terrace) Well, I was just..."
+   RIGHT: "Well, I was just cooking when..."
+
+4. STAY IN CHARACTER: Every response should sound unmistakably like you.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
         self.messages: list[dict] = [
-            {"role": "system", "content": system_prompt}
+            {"role": "system", "content": full_prompt}
         ]
 
     # ── Location ──────────────────────────────────────────────────────────────
@@ -212,10 +240,19 @@ class SimpsonsCharacter:
         return self.get_scene() == other.get_scene()
 
     def get_state_context(self) -> str:
-        ctx = f"[You are currently at: {self.location}"
+        """
+        Returns a hidden internal context string injected before every prompt.
+        Marked clearly as stage direction so characters never speak it aloud.
+        """
+        ctx = (
+            f"[INTERNAL STAGE DIRECTION — DO NOT SAY THIS ALOUD, "
+            f"DO NOT NARRATE YOUR LOCATION, this is just so you know "
+            f"where you are: you are currently at {self.location}"
+        )
         if self.activity:
-            ctx += f". You are: {self.activity}"
-        ctx += "]"
+            ctx += f", and you are {self.activity}"
+        ctx += ". Never mention your location in brackets or parentheses "
+        ctx += "in your response. Just speak naturally as your character.]"
         return ctx
 
     # ── Core chat ─────────────────────────────────────────────────────────────
@@ -224,8 +261,8 @@ class SimpsonsCharacter:
                      trigger_depth: int = 0,
                      ignore_location: bool = False) -> str:
         """
-        Generate a response.
-        Name-triggers only fire for characters in the SAME scene unless
+        Generate a response. Retries once on Ollama connection drop.
+        Name-triggers only fire for co-located characters unless
         ignore_location=True (used by events and scene scripts).
         """
         context = self.get_state_context()
@@ -234,17 +271,42 @@ class SimpsonsCharacter:
             "content": f"{context} [{sender} says]: {message}"
         })
 
-        stream = ollama.chat(
-            model=MODEL,
-            messages=self.messages,
-            stream=True,
-        )
+        MAX_RETRIES = 2
+        response    = ""
 
-        response = ""
-        for chunk in stream:
-            part = chunk["message"]["content"]
-            print(f"{self.color}{part}{self.reset}", end="", flush=True)
-            response += part
+        for attempt in range(MAX_RETRIES):
+            try:
+                stream = ollama.chat(
+                    model=MODEL,
+                    messages=self.messages,
+                    stream=True,
+                )
+                response = ""
+                for chunk in stream:
+                    part = chunk["message"]["content"]
+                    print(f"{self.color}{part}{self.reset}", end="", flush=True)
+                    response += part
+                break   # success
+
+            except Exception as e:
+                err = str(e)
+                if attempt < MAX_RETRIES - 1:
+                    import time as _t
+                    print(f"\n{self.color}[{self.name}]\033[0m "
+                          f"\033[2m(connection lost, retrying...)\033[0m",
+                          flush=True)
+                    _t.sleep(2)
+                else:
+                    if "disconnected" in err.lower() or "protocol" in err.lower():
+                        hint = "Ollama disconnected — try: systemctl restart ollama"
+                    elif "refused" in err.lower():
+                        hint = "Ollama not running — try: ollama serve"
+                    else:
+                        hint = err[:80]
+                    print(f"\n\033[91m[{self.name} — error: {hint}]\033[0m")
+                    if self.messages and self.messages[-1]["role"] == "user":
+                        self.messages.pop()
+                    return ""
 
         self.messages.append({"role": "assistant", "content": response})
         print()
@@ -264,8 +326,12 @@ class SimpsonsCharacter:
                     f"— they mentioned your name. React naturally as {target.name}."
                 )
                 print(f"\n{target.color}[{target.name.upper()} — reacts]:{target.reset} ", end="")
-                target.get_response(trigger_msg, sender=self.name,
+                trigger_resp = target.get_response(trigger_msg, sender=self.name,
                                     trigger_depth=trigger_depth + 1)
+                # Run director on triggered reactions too
+                if SimpsonsCharacter._director_callback and trigger_resp:
+                    key = target.name.lower()
+                    SimpsonsCharacter._director_callback(key, target.name, trigger_resp)
 
         return response
 

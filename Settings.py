@@ -10,7 +10,7 @@ Changes take effect next time you run SpringfieldChat.py.
 # Examples: "llama3.2:latest", "llama3.1:latest", "mistral:latest",
 #           "gemma2:latest", "phi3:latest", "deepseek-r1:8b"
 
-MODEL = "llama3.2:latest"
+MODEL = "llama3.2:3b"
 
 
 # ── Character Toggle ──────────────────────────────────────────────────────────
@@ -93,5 +93,4 @@ NELSON_SENSITIVITY = "medium"
 # 1 = one level of reactions
 # 2 = two levels (default)
 # Warning: setting this high with many characters active can get very noisy!
-
-TRIGGER_DEPTH = 2
+TRIGGER_DEPTH = 5

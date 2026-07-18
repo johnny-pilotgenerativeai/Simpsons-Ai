@@ -47,10 +47,11 @@ import character_base as _cb
 from SceneView import ConversationLog, venue_name, sub_location
 from StranglingSequence import should_strangle, run_strangling_sequence, homer_said_why_you_little
 from Actions import run_action
+from NelsonSequence import run_nelson_sequence
 
 # ── Load settings ────────────────────────────────────────────────────────────
 try:
-    import settings as _cfg
+    import Settings as _cfg
     _ENABLED      = _cfg.CHARACTERS
     _NELSON_SENS  = _cfg.NELSON_SENSITIVITY
 except ImportError:
@@ -154,6 +155,16 @@ except Exception as _e:
     DIRECTOR = None
     DIRECTOR_ENABLED = False
 
+# ── Register director callback so name-triggers also update locations ─────────
+def _director_cb(char_key: str, char_name: str, response: str):
+    """Called by character_base after every response including name-triggers."""
+    if not DIRECTOR_ENABLED or DIRECTOR is None or not response:
+        return
+    result = DIRECTOR.analyse(char_key, char_name, response)
+    DIRECTOR.apply(result, react_fn=director_react)
+
+_cb.SimpsonsCharacter._director_callback = _director_cb
+
 # ── Banner ────────────────────────────────────────────────────────────────────
 
 def _make_banner():
@@ -240,33 +251,55 @@ _NELSON_EXTRA = [
 ]
 
 def nelson_interject(response: str, speaker_name: str):
+    """
+    Check if a response contains misfortune and run Nelson's full HA-HA
+    sequence — walks over, points, delivers HA-HA, victim reacts, saunters off.
+    """
     if NELSON_CHAR is None:
         return
     if _NELSON_SENS == "off":
         return
     if speaker_name.lower() == "nelson":
         return
+
     triggered = haw_haw_check(response, speaker_name)
+
     if not triggered and _NELSON_SENS == "high":
-        import re
+        import re as _re
         for pat in _NELSON_EXTRA:
-            if re.search(pat, response, re.IGNORECASE):
+            if _re.search(pat, response, re.IGNORECASE):
                 triggered = True
                 break
+
     if _NELSON_SENS == "low":
-        # only trigger on the most severe patterns (d'oh, fired, exploded etc.)
-        import re
-        SEVERE = [r"\b(d'oh|doh)\b", r"\b(fired|exploded|blew up|arrested|hospitalised)\b"]
-        triggered = any(re.search(p, response, re.IGNORECASE) for p in SEVERE)
+        import re as _re
+        SEVERE = [r"\b(d'oh|doh)\b",
+                  r"\b(fired|exploded|blew up|arrested|hospitalised)\b"]
+        triggered = any(_re.search(p, response, re.IGNORECASE) for p in SEVERE)
+
     if not triggered:
         return
-    trigger = (
-        f"{speaker_name} just said: \"{response.strip()}\" "
-        f"Something went wrong or someone suffered a misfortune. "
-        f"React with your iconic HA-HA and a short taunt."
+
+    # Find the victim's character key
+    victim_key = None
+    for key, char in ALL_CHARS.items():
+        if char.name.lower() == speaker_name.lower():
+            victim_key = key
+            break
+
+    if victim_key is None:
+        return
+
+    # Build a short misfortune description from the response
+    words = response.strip().split()
+    misfortune_desc = " ".join(words[:25]) + ("..." if len(words) > 25 else "")
+
+    run_nelson_sequence(
+        ALL_CHARS,
+        victim_key=victim_key,
+        misfortune_desc=misfortune_desc,
+        conv_log=CONV_LOG,
     )
-    print(f"\n{NELSON_CHAR.color}[NELSON]:{NELSON_CHAR.reset} ", end="")
-    NELSON_CHAR.get_response(trigger, sender="[misfortune detector]", trigger_depth=99)
 
 # ── Discussion helper ─────────────────────────────────────────────────────────
 
@@ -375,6 +408,19 @@ def main():
         if lower == "exit":
             print("D'oh! Leaving Springfield...")
             break
+
+        # ── Analyse user input first — update ALL locations before responding ──
+        _raw_input = user_input
+        for _pfx in ("@all ","@family ","@school ","@plant ","@locals ",
+                     "@flanders ","@kids ","@adults ","@media ","@notables ","@kwikmart "):
+            if lower.startswith(_pfx):
+                _raw_input = user_input[len(_pfx):]
+                break
+        if _raw_input and not _raw_input.startswith("/") and DIRECTOR_ENABLED and DIRECTOR:
+            _result = DIRECTOR.analyse("user", "User", _raw_input,
+                                       context="This is a USER command/message — "
+                                       "update ALL character locations that this implies.")
+            DIRECTOR.apply(_result)
 
         # Group commands
         matched = False

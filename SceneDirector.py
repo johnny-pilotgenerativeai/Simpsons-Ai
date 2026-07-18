@@ -15,8 +15,8 @@ import json
 import re
 import ollama
 from character_base import MODEL, ALL_CHARS_REF, get_scene
-import bridge
-from bridge import (
+import Bridge
+from Bridge import (
     send as _send, send_raw as _send_raw, Stream,
     scene_line, narrator_line, location_update, pause,
     WHITE, BOLD, DIM, RESET, ITALIC, GREEN, YELLOW, CYAN,
@@ -163,39 +163,76 @@ class SceneDirector:
     """
 
     SYSTEM_PROMPT = """
-You are the omniscient scene director for the Simpsons. You have FULL AUTHORITY
-over all character locations and activities. You run after EVERY message.
+You are the omniscient scene director for Springfield. You run after EVERY
+single message — including user commands. You have FULL AUTHORITY over ALL
+character locations and activities.
 
-You receive:
-- Complete current location of every character
-- Last 15 lines of conversation
-- The latest message
+Return ONLY a valid JSON object. No prose. No markdown. No fences.
 
-Return ONLY a valid JSON object. No prose. No markdown.
-
-JSON schema:
 {
   "locations": {
     "bart": "at home, 742 Evergreen Terrace — in the backyard doing yard work",
-    "lisa": "at home, 742 Evergreen Terrace — in the backyard doing yard work"
+    "homer": "at home, 742 Evergreen Terrace — in the backyard"
   },
-  "event": "optional scene event to fire",
-  "event_targets": ["key1", "key2"],
+  "event": "optional",
+  "event_targets": ["bart", "homer"],
   "narrator": "optional dry one-liner max 12 words",
   "mood": "calm|tense|chaos|heartwarming|funny"
 }
 
-LOCATION UPDATE RULES — BE AGGRESSIVE, BE THOROUGH:
-1. GROUP MOVEMENTS: If the conversation implies a group activity, update ALL.
-2. IMPLIED MOVEMENT: Talking about doing something = already doing it.
-3. AUTHORITY CALLS: "kids come inside" = move all kids inside.
-4. ACTIVITY UPDATES: Update the activity part (after —) freely.
-5. CONTEXT: Use the FULL conversation — not just the last message.
-6. WHEN IN DOUBT UPDATE: Better to update too many than too few.
-7. ONLY MOVE SCENE-RELEVANT characters.
+═══════════════════════════════════════════════════════════════
+RULES — READ ALL OF THESE. APPLY ALL OF THESE. EVERY TIME.
+═══════════════════════════════════════════════════════════════
 
-Return "locations": {} ONLY if truly nothing changed.
-Return ONLY the JSON.
+RULE 1 — USER COMMANDS ARE MOVEMENT ORDERS:
+If the sender is "User" and the message contains group tags or location words,
+treat it as a DIRECT ORDER to move those characters immediately.
+Examples:
+  "@all let's go to Moe's"              → move EVERYONE to Moe's Tavern
+  "@family come to the kitchen"         → move all family to kitchen
+  "@school fire drill outside"          → move all school chars outside
+  "everyone outside for yard work"      → move all present chars to yard
+  "@bart go to school"                  → move bart to Springfield Elementary
+You MUST update every character the command applies to.
+
+RULE 2 — GROUP MOVEMENTS — UPDATE ALL:
+If ANY message implies a group is going somewhere or doing something together,
+update EVERY member of that group. Never update just one when they move together.
+Wrong: only moving homer when message says "family goes to Moe's"
+Right: moving homer, marge, bart, lisa, maggie all to Moe's
+
+RULE 3 — IMPLIED PRESENCE:
+If a character is talking ABOUT being somewhere, they ARE there.
+If Homer talks about sitting at the bar, he is at the bar.
+If Bart talks about being in class, he is in class.
+Update their location to reflect this immediately.
+
+RULE 4 — ACTIVITY TRACKING:
+Update the activity (after the —) on every response.
+If Marge is cooking, write "at home, 742 Evergreen Terrace — cooking dinner"
+If Bart is skateboarding, write "outside 742 Evergreen Terrace — skateboarding"
+Never leave the activity blank if you know what they are doing.
+
+RULE 5 — FULL CONTEXT:
+Look at all 15 lines of conversation history. If 5 messages ago the family
+agreed to go to Moe's, they are STILL at Moe's unless something changed.
+Do NOT reset locations just because they weren't mentioned recently.
+
+RULE 6 — WHEN IN DOUBT, UPDATE:
+It is ALWAYS better to update too many locations than too few.
+If there is any reasonable inference a character moved, update them.
+
+RULE 7 — AUTHORITY CALLS MOVE EVERYONE:
+"Marge calls kids to dinner"   → move bart, lisa, maggie, homer to dinner table
+"Skinner calls students in"    → move all school kids inside
+"Homer says come to Moe's"     → move lenny, carl, barney to Moe's if mentioned
+"come inside everyone"         → move all outdoor characters inside
+
+RULE 8 — EVERY RESPONSE SHOULD HAVE LOCATIONS:
+Unless this is pure dialogue with zero movement or activity change,
+your "locations" object should contain UPDATES. Empty {} should be rare.
+
+Return ONLY the JSON. Nothing else.
 """
 
     def __init__(self, all_chars: dict):
@@ -471,67 +508,9 @@ Return ONLY the JSON.
             print(f"  {char.color}{char.name}{RESET}: {char.location}")
 
 
-# ── Standalone monitor — python3 SceneDirector.py ────────────────────────────
+# ── Standalone — python3 SceneDirector.py ───────────────────────────────────
+# Redirects to bridge.py monitor (the socket-based live viewer)
 
 if __name__ == "__main__":
-    CYAN   = "\033[96m"
-    GREEN  = "\033[92m"
-    YELLOW = "\033[93m"
-    RED    = "\033[91m"
-    MAGENTA = "\033[95m"
-    BOLD   = "\033[1m"
-    DIM    = "\033[2m"
-    WHITE  = "\033[97m"
-    RESET  = "\033[0m"
-
-    _ensure_fifo()
-
-    print(f"{BOLD}{WHITE}╔══════════════════════════════════════════════════════╗{RESET}")
-    print(f"{BOLD}{WHITE}║   🎬  SCENE DIRECTOR — LIVE MONITOR                  ║{RESET}")
-    print(f"{BOLD}{WHITE}║   Pipe: {FIFO_PATH:<44}║{RESET}")
-    print(f"{BOLD}{WHITE}║   Run SpringfieldChat.py in another terminal          ║{RESET}")
-    print(f"{BOLD}{WHITE}║   Ctrl+C to exit                                      ║{RESET}")
-    print(f"{BOLD}{WHITE}╚══════════════════════════════════════════════════════╝{RESET}\n")
-    print(f"{DIM}Waiting for Springfield activity...{RESET}\n")
-
-    def colour_line(line: str) -> str:
-        if line.startswith("━━━ ANALYSE"):
-            return f"\n{BOLD}{CYAN}{line}{RESET}"
-        elif line.startswith("── AI thinking:"):
-            return f"{DIM}{WHITE}{line}{RESET}"
-        elif line.startswith("── LOCATIONS"):
-            return f"\n{BOLD}{GREEN}{line}{RESET}"
-        elif line.strip().startswith("   ") and "→" in line:
-            k, _, v = line.strip().partition("→")
-            return f"   {YELLOW}{k.strip()}{RESET} → {GREEN}{v.strip()}{RESET}"
-        elif line.startswith("── NARRATOR"):
-            return f"{CYAN}{line}{RESET}"
-        elif line.startswith("── EVENT"):
-            return f"{MAGENTA}{line}{RESET}"
-        elif line.startswith("── MOOD"):
-            return f"{DIM}{line}{RESET}"
-        elif line.startswith("── ERROR"):
-            return f"{RED}{line}{RESET}"
-        elif "MOVE" in line or "CALL" in line or "GROUP" in line:
-            return f"{YELLOW}{line}{RESET}"
-        elif "APPLY" in line:
-            return f"{GREEN}{line}{RESET}"
-        elif "MANUAL" in line:
-            return f"{WHITE}{line}{RESET}"
-        elif "INIT" in line:
-            return f"{DIM}{GREEN}{line}{RESET}"
-        return f"{DIM}{line}{RESET}"
-
-    # Open FIFO for reading — blocks here until a writer connects
-    print(f"{DIM}Opening pipe (will unblock when SpringfieldChat starts)...{RESET}")
-    try:
-        with open(FIFO_PATH, "r", encoding="utf-8", errors="replace") as pipe:
-            print(f"{GREEN}✓ Connected.{RESET}\n")
-            for line in pipe:
-                line = line.rstrip("\n")
-                if line:
-                    print(colour_line(line))
-    except KeyboardInterrupt:
-        print(f"\n{DIM}Monitor closed.{RESET}")
-    except Exception as e:
-        print(f"{RED}Pipe error: {e}{RESET}")
+    from Bridge import run_monitor
+    run_monitor()

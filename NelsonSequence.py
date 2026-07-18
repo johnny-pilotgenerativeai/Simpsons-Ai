@@ -16,8 +16,8 @@ Sequence:
 
 import re
 from character_base import get_scene
-from bridge import (
-    scene_line, pause, pipe_write,
+from Bridge import (
+    scene_line, pause, send as pipe_write,
     WHITE, BOLD, DIM, RESET, ITALIC,
 )
 
