@@ -10,7 +10,7 @@ Changes take effect next time you run SpringfieldChat.py.
 # Examples: "llama3.2:latest", "llama3.1:latest", "mistral:latest",
 #           "gemma2:latest", "phi3:latest", "deepseek-r1:8b"
 
-MODEL = "llama3.2:3b"
+MODEL = "llama3.2:latest"
 
 
 # ── Character Toggle ──────────────────────────────────────────────────────────
