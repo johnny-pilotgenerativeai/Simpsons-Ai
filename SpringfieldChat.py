@@ -5,9 +5,17 @@ Nelson will automatically HA-HA at any misfortune he detects.
 
 Run:  python SpringfieldChat.py
 """
-
+import ChiefWiggum
+import DrNick
+import Eddie
 # ── Imports — must exactly match filenames on disk (Linux is case-sensitive) ──
 import Homer, Lisa, Bart, Marge, Maggie
+import Jasper
+import Lou
+import OldJewishMan
+import SeaCaptain
+import Smithers
+import SqueakyVoicedTeen
 import moe, nelson, BumbleBeeMan
 import Lenny, Carl
 import Comicbookguy, Montyburns, Mayorquimby
@@ -48,7 +56,10 @@ from SceneView import ConversationLog, venue_name, sub_location
 from StranglingSequence import should_strangle, run_strangling_sequence, homer_said_why_you_little
 from Actions import run_action
 from NelsonSequence import run_nelson_sequence
-
+import Grampa
+import YesGuy
+import DrHibbert
+import SlideshowMel
 # ── Load settings ────────────────────────────────────────────────────────────
 try:
     import settings as _cfg
@@ -142,7 +153,7 @@ RECURRING = {
     **_r("squeakyvoicedteen","SqueakyVoicedTeen", SqueakyVoicedTeen.character),
     **_r("yesguy",           "YesGuy",            YesGuy.character),
     **_r("smithers",         "Smithers",          Smithers.character),
-    **_r("sideshowmel",      "SideshowMel",       SideshowMel.character),
+    **_r("sideshowmel",      "SideshowMel",       SlideshowMel.character),
 }
 
 MEDICAL = {
@@ -437,16 +448,17 @@ def main():
         try:
             user_input = input("\nYou: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nSo long, Springfield!")
+            print("[system] Keyboard interrupt")
+            print("\nD'oh! Leaving Springfield...")
             break
 
         if not user_input:
             continue
 
         lower = user_input.lower()
-
+        print("[Message] message sent: \n step 1: Analyse character locations \n step 2: characters talk")
         if lower == "exit":
-            print("D'oh! Leaving Springfield...")
+            print("So long, Springfield!")
             break
 
         # ── Analyse user input first — update ALL locations before responding ──
