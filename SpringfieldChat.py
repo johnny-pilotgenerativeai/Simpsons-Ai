@@ -51,7 +51,7 @@ from NelsonSequence import run_nelson_sequence
 
 # ── Load settings ────────────────────────────────────────────────────────────
 try:
-    import Settings as _cfg
+    import settings as _cfg
     _ENABLED      = _cfg.CHARACTERS
     _NELSON_SENS  = _cfg.NELSON_SENSITIVITY
 except ImportError:
@@ -132,9 +132,38 @@ MEDIA = {
     **_r("kentbrockman", "KentBrockman", KentBrockman.character),
 }
 
+RETIREMENT = {
+    **_r("grampa",           "Grampa",           Grampa.character),
+    **_r("jasper",           "Jasper",            Jasper.character),
+    **_r("oldjewishman",     "OldJewishMan",      OldJewishMan.character),
+}
+
+RECURRING = {
+    **_r("squeakyvoicedteen","SqueakyVoicedTeen", SqueakyVoicedTeen.character),
+    **_r("yesguy",           "YesGuy",            YesGuy.character),
+    **_r("smithers",         "Smithers",          Smithers.character),
+    **_r("sideshowmel",      "SideshowMel",       SideshowMel.character),
+}
+
+MEDICAL = {
+    **_r("drnick",           "DrNick",            DrNick.character),
+    **_r("drhibbert",        "DrHibbert",         DrHibbert.character),
+}
+
+POLICE = {
+    **_r("chiefwiggum",      "ChiefWiggum",       ChiefWiggum.character),
+    **_r("eddie",            "Eddie",             Eddie.character),
+    **_r("lou",              "Lou",               Lou.character),
+}
+
+SERVICES = {
+    **_r("seacaptain",       "SeaCaptain",        SeaCaptain.character),
+}
+
 ALL_CHARS = {**FAMILY, **SPRINGFIELD, **PLANT_WORKERS,
              **NOTABLES, **FLANDERS, **SCHOOL,
-             **KIDS, **KWIKMART, **ADULTS, **MEDIA}
+             **KIDS, **KWIKMART, **ADULTS, **MEDIA,
+             **RETIREMENT, **RECURRING, **MEDICAL, **POLICE, **SERVICES}
 
 NELSON_CHAR = nelson.character if _active("nelson") else None
 
@@ -234,6 +263,17 @@ ALIASES = {
     "kent":         "kentbrockman",
     "brockman":     "kentbrockman",
     "moleman":      "hansmoleman",
+    "wiggum":       "chiefwiggum",
+    "chief":        "chiefwiggum",
+    "mel":          "sideshowmel",
+    "nick":         "drnick",
+    "hibbert":      "drhibbert",
+    "teen":         "squeakyvoicedteen",
+    "squeaky":      "squeakyvoicedteen",
+    "captain":      "seacaptain",
+    "abe":          "grampa",
+    "abraham":      "grampa",
+    "yes":          "yesguy",
     "hans":         "hansmoleman",
 }
 

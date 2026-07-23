@@ -74,6 +74,29 @@ CHARACTERS = {
     "Krusty":                  True,
     "SideshowBob":             True,
     "KentBrockman":            True,
+
+    # ── Retirement Castle ─────────────────────────────────────────────────
+    "Grampa":                  True,
+    "Jasper":                  True,
+    "OldJewishMan":            True,
+
+    # ── Springfield Recurring ─────────────────────────────────────────────
+    "SqueakyVoicedTeen":       True,
+    "YesGuy":                  True,
+    "Smithers":                True,
+    "SideshowMel":             True,
+
+    # ── Medical ───────────────────────────────────────────────────────────
+    "DrNick":                  True,
+    "DrHibbert":               True,
+
+    # ── Springfield Services ──────────────────────────────────────────────
+    "SeaCaptain":              True,
+
+    # ── Police ────────────────────────────────────────────────────────────
+    "ChiefWiggum":             True,
+    "Eddie":                   True,
+    "Lou":                     True,
 }
 
 
@@ -93,4 +116,5 @@ NELSON_SENSITIVITY = "medium"
 # 1 = one level of reactions
 # 2 = two levels (default)
 # Warning: setting this high with many characters active can get very noisy!
-TRIGGER_DEPTH = 5
+
+TRIGGER_DEPTH = 2
