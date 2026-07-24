@@ -53,6 +53,7 @@ CHARACTER_MODULES = {
     # Kwik-E-Mart
     "apu":                     "Apu",
     "sanjay":                  "Sanjay",
+    "gill":                    "Gill",
     # Springfield adults
     "barney":                  "Barney",
     "patty":                   "Patty",

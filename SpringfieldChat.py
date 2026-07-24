@@ -29,7 +29,7 @@ except ModuleNotFoundError:
     import Millhouse as Milhouse
 
 import Ralph, Martin
-import Apu, Sanjay
+import Apu, Sanjay, Gill
 import Barney, Patty, Selma
 
 # These three have mixed-case filenames across different systems
@@ -128,6 +128,7 @@ KIDS = {
 KWIKMART = {
     **_r("apu",    "Apu",    Apu.character),
     **_r("sanjay", "Sanjay", Sanjay.character),
+    **_r("gill",   "Gill",   Gill.character),
 }
 
 ADULTS = {
@@ -236,7 +237,7 @@ def _make_banner():
 ║  @school     — Skinner, Willie, Doris, Chalmers,             ║
 ║                MrsKrabappel, MrLargo                         ║
 ║  @kids       — Milhouse, Ralph, Martin                       ║
-║  @kwikmart   — Apu, Sanjay                                   ║
+║  @kwikmart   — Apu, Sanjay, Gill                             ║
 ║  @adults     — Barney, Patty, Selma, HansMoleman             ║
 ║  @media      — Krusty, SideshowBob, KentBrockman             ║
 ╠══════════════════════════════════════════════════════════════╣

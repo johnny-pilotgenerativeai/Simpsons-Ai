@@ -63,6 +63,7 @@ CHARACTERS = {
     # ── Kwik-E-Mart ───────────────────────────────────────────────────────
     "Apu":                     True,
     "Sanjay":                  True,
+    "Gill":                    True,
 
     # ── Springfield Adults ────────────────────────────────────────────────
     "Barney":                  True,
