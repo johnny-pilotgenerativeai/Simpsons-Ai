@@ -293,7 +293,7 @@ UNIVERSAL RULES — APPLY TO EVERY SINGLE RESPONSE, NO EXCEPTIONS:
                 if attempt < MAX_RETRIES - 1:
                     import time as _t
                     print(f"\n{self.color}[{self.name}]\033[0m "
-                          f"\033[2m(connection lost, retrying...)\033[0m",
+                          f"\033[2m connection lost, retrying...\033[0m",
                           flush=True)
                     _t.sleep(2)
                 else:
