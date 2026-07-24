@@ -29,8 +29,8 @@ except ModuleNotFoundError:
     import Millhouse as Milhouse
 
 import Ralph, Martin
-import Apu, Sanjay, Gill
-import Barney, Patty, Selma
+import Apu, Sanjay
+import Barney, Patty, Selma, Gil
 
 # These three have mixed-case filenames across different systems
 # — try both and alias to a consistent name
@@ -128,7 +128,6 @@ KIDS = {
 KWIKMART = {
     **_r("apu",    "Apu",    Apu.character),
     **_r("sanjay", "Sanjay", Sanjay.character),
-    **_r("gill",   "Gill",   Gill.character),
 }
 
 ADULTS = {
@@ -155,6 +154,7 @@ RECURRING = {
     **_r("yesguy",           "YesGuy",            YesGuy.character),
     **_r("smithers",         "Smithers",          Smithers.character),
     **_r("sideshowmel",      "SideshowMel",       SlideshowMel.character),
+    **_r("gil",              "Gil",               Gil.character),
 }
 
 MEDICAL = {
@@ -237,9 +237,11 @@ def _make_banner():
 ║  @school     — Skinner, Willie, Doris, Chalmers,             ║
 ║                MrsKrabappel, MrLargo                         ║
 ║  @kids       — Milhouse, Ralph, Martin                       ║
-║  @kwikmart   — Apu, Sanjay, Gill                             ║
+║  @kwikmart   — Apu, Sanjay                                   ║
 ║  @adults     — Barney, Patty, Selma, HansMoleman             ║
 ║  @media      — Krusty, SideshowBob, KentBrockman             ║
+║  @recurring   — SqueakyVoicedTeen, YesGuy, Smithers,         ║
+║                SideshowMel, Gil                               ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  /<speaker>:<listener> <msg>       — character to character  ║
 ║  /event <desc>                     — show event (white)      ║
@@ -287,6 +289,8 @@ ALIASES = {
     "abraham":      "grampa",
     "yes":          "yesguy",
     "hans":         "hansmoleman",
+    "gil":          "gil",
+    "gunderson":    "gil",
 }
 
 def resolve(name: str) -> str:
@@ -437,6 +441,7 @@ GROUP_COMMANDS = {
     "@notables ":  (NOTABLES,     "🎩  SPRINGFIELD NOTABLES",      10),
     "@flanders ":  (FLANDERS,     "🙏  THE FLANDERS FAMILY",       10),
     "@school ":    (SCHOOL,       "🏫  SPRINGFIELD ELEMENTARY",    8),
+    "@recurring ": (RECURRING,    "🎭  RECURRING CHARACTERS",      12),
 }
 
 # ── Main REPL ─────────────────────────────────────────────────────────────────
@@ -465,7 +470,7 @@ def main():
         # ── Analyse user input first — update ALL locations before responding ──
         _raw_input = user_input
         for _pfx in ("@all ","@family ","@school ","@plant ","@locals ",
-                     "@flanders ","@kids ","@adults ","@media ","@notables ","@kwikmart "):
+                     "@flanders ","@kids ","@adults ","@media ","@notables ","@kwikmart ","@recurring "):
             if lower.startswith(_pfx):
                 _raw_input = user_input[len(_pfx):]
                 break

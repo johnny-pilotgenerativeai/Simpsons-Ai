@@ -53,7 +53,6 @@ CHARACTER_MODULES = {
     # Kwik-E-Mart
     "apu":                     "Apu",
     "sanjay":                  "Sanjay",
-    "gill":                    "Gill",
     # Springfield adults
     "barney":                  "Barney",
     "patty":                   "Patty",
@@ -63,6 +62,7 @@ CHARACTER_MODULES = {
     "krusty":                  "Krusty",
     "sideshowbob":             "SideshowBob",
     "kentbrockman":            "KentBrockman",
+    "gil":                     "Gil",
 }
 
 # ── Scene tags — normalise a location string to its main venue ────────────────

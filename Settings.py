@@ -63,7 +63,6 @@ CHARACTERS = {
     # ── Kwik-E-Mart ───────────────────────────────────────────────────────
     "Apu":                     True,
     "Sanjay":                  True,
-    "Gill":                    True,
 
     # ── Springfield Adults ────────────────────────────────────────────────
     "Barney":                  True,
@@ -86,6 +85,7 @@ CHARACTERS = {
     "YesGuy":                  True,
     "Smithers":                True,
     "SideshowMel":             True,
+    "Gil":                    True,
 
     # ── Medical ───────────────────────────────────────────────────────────
     "DrNick":                  True,
