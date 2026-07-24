@@ -85,7 +85,7 @@ CHARACTERS = {
     "YesGuy":                  True,
     "Smithers":                True,
     "SideshowMel":             True,
-    "Gil":                    True,
+    "Gil":                     True,
 
     # ── Medical ───────────────────────────────────────────────────────────
     "DrNick":                  True,
