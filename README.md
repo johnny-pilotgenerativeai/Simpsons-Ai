@@ -499,23 +499,24 @@ Want to add a new character?
 Example template:
 
 ```python
-"""
-CharacterName.py - Character Name AI
-Run directly: python CharacterName.py
-Import: from CharacterName import character
-"""
-
+"""Example.py — Example AI"""
 from character_base import SimpsonsCharacter
 
-CHARACTER_SYSTEM = """
-You are Character Name from The Simpsons.
-[Describe personality, catchphrases, relationships, etc.]
-"""
-
 character = SimpsonsCharacter(
-    name="Character Name",
-    system_prompt=CHARACTER_SYSTEM,
-    color="\033[96m"  # Cyan
+    name="Example",
+    system_prompt="""
+[Add a character description]
+
+⚠️ CRITICAL RULE: Speak ONLY as Example Never voice other characters.
+
+[Add personality]
+
+[Add signature phrases]
+
+
+[Final description]
+""",
+    color="\033[32m",
 )
 
 if __name__ == "__main__":
