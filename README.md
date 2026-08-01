@@ -14,7 +14,9 @@
 </div>
 
 ---
-
+## **warning
+HIGHLY NOT RECOMMENDED TO PULL OR USE BECAUSE OF COPYRIGHT
+EXPERIMENTAL PURPOSES ONLY
 ## 📋 Overview
 
 **Simpsons AI** is an interactive chat application that brings the entire town of Springfield to life using AI-powered characters. Each character has their own unique personality, voice, and behavior patterns based on their portrayal in *The Simpsons* TV show.
