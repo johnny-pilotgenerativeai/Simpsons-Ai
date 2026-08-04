@@ -449,7 +449,7 @@ UNIVERSAL RULES — APPLY TO EVERY SINGLE RESPONSE, NO EXCEPTIONS:
             self.messages[0],
             {"role": "user", "content": think_prompt}
         ]
-        print(f"\n{self.color}[{self.name.upper()} thinks]:{RST} ", end="")
+        print(f"\n{DIM}[{self.name.upper()} thinks]:{RST} ", end="")
         stream = ollama.chat(model=MODEL, messages=thought_messages, stream=True)
         thought = ""
         for chunk in stream:
