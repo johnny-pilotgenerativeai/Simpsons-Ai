@@ -16,6 +16,13 @@ import re
 import ollama
 from character_base import MODEL, ALL_CHARS_REF, get_scene
 import Bridge
+
+# ── Load simulation intensity setting ─────────────────────────────────────────
+try:
+    import settings as _cfg
+    SIMULATION_INTENSITY = getattr(_cfg, 'SIMULATION_INTENSITY', "medium")
+except ImportError:
+    SIMULATION_INTENSITY = "medium"
 from Bridge import (
     send as _send, send_raw as _send_raw, Stream,
     scene_line, narrator_line, location_update, pause,
@@ -59,6 +66,45 @@ DEFAULT_LOCATIONS = {
     "krusty":                  "at Channel 6 Studios — in the dressing room",
     "sideshowbob":             "in a prison cell at Springfield Penitentiary",
     "kentbrockman":            "at Channel 6 News studio — at the anchor desk",
+    # Springfield Services
+    "seacaptain":              "at Springfield Marina — on his boat",
+    # Medical
+    "drhibbert":               "at Springfield General Hospital — in his office",
+    "drnick":                  "at his office — waiting for patients",
+    # Police
+    "chiefwiggum":             "at Springfield Police Station — eating donuts",
+    "eddie":                   "at Springfield Police Station — at his desk",
+    "lou":                     "at Springfield Police Station — at his desk",
+    # Springfield Mafia
+    "fattony":                 "at the Springfield Docks — in his office",
+    "legs":                   "at the Springfield Docks — standing guard",
+    "louie":                  "at the Springfield Docks — handling the books",
+    "johnnytightlips":         "at the Springfield Docks — behind the wheel of the black car",
+    # Retirement Castle
+    "grampa":                  "at Springfield Retirement Castle — in his room",
+    "jasper":                  "at Springfield Retirement Castle — in the common room",
+    "oldjewishman":            "at Springfield Retirement Castle — playing cards",
+    # Springfield Recurring
+    "squeakyvoicedteen":       "at Springfield Mall — loitering",
+    "yesguy":                  "at Springfield Town Hall — saying yes to everything",
+    "smithers":                "at Springfield Nuclear Power Plant — at Mr. Burns' side",
+    # Slideshow Mel
+    "slideshowmel":            "at Springfield Penitentiary — visiting Sideshow Bob",
+    # Sports & Entertainment
+    "dredricktatum":           "at Springfield Boxing Gym — training",
+    "rainierwolfcastle":      "at Channel Ocho studios — on the McBain set",
+    # Business & Administration
+    "lindsaynaegle":           "at Springfield Nuclear Power Plant — at Mr. Burns' side",
+    # Law & Order
+    "judgeconstableharm":      "at Springfield Courthouse — on the bench",
+    "judgeconstablesnyder":   "at Springfield Courthouse — in chambers",
+    # Springfield Elementary Kids
+    "jimbo":                   "at Springfield Elementary — outside causing trouble",
+    "dolph":                   "at Springfield Elementary — with Jimbo",
+    "kearny":                  "at Springfield Elementary — with Jimbo and Dolph",
+    "nina":                    "at Springfield Elementary — gossiping with Sherri and Terri",
+    "sherri":                  "at Springfield Elementary — leading the popular girls",
+    "terri":                   "at Springfield Elementary — strategizing with Sherri and Nina",
 }
 
 # ── Quick keyword location map ────────────────────────────────────────────────
@@ -169,70 +215,82 @@ character locations and activities.
 
 Return ONLY a valid JSON object. No prose. No markdown. No fences.
 
+EXACT FORMAT:
+{
+  "locations": {"char_key": "location description", ...},
+  "event": "event description text only - no prefixes like 'narrator:'",
+  "event_targets": ["char1", "char2"],
+  "narrator": "brief commentary text only - no labels or prefixes",
+  "mood": "calm|tense|chaos|heartwarming|funny"
+}
+
+EXAMPLE:
 {
   "locations": {
-    "bart": "at home, 742 Evergreen Terrace — in the backyard doing yard work",
-    "homer": "at home, 742 Evergreen Terrace — in the backyard"
+    "bart": "at home, 742 Evergreen Terrace - in the backyard doing yard work",
+    "homer": "at home, 742 Evergreen Terrace - in the backyard"
   },
-  "event": "optional",
+  "event": "A little chaos in the morning",
   "event_targets": ["bart", "homer"],
-  "narrator": "optional dry one-liner max 12 words",
+  "narrator": "Typical morning at the Simpson household",
   "mood": "calm|tense|chaos|heartwarming|funny"
 }
 
 ═══════════════════════════════════════════════════════════════
-RULES — READ ALL OF THESE. APPLY ALL OF THESE. EVERY TIME.
+RULES - READ ALL OF THESE. APPLY ALL OF THESE. EVERY TIME.
 ═══════════════════════════════════════════════════════════════
 
-RULE 1 — USER COMMANDS ARE MOVEMENT ORDERS:
+RULE 1 - USER COMMANDS ARE MOVEMENT ORDERS:
 If the sender is "User" and the message contains group tags or location words,
 treat it as a DIRECT ORDER to move those characters immediately.
 Examples:
-  "@all let's go to Moe's"              → move EVERYONE to Moe's Tavern
-  "@family come to the kitchen"         → move all family to kitchen
-  "@school fire drill outside"          → move all school chars outside
-  "everyone outside for yard work"      → move all present chars to yard
-  "@bart go to school"                  → move bart to Springfield Elementary
+  "@all let's go to Moe's"              -> move EVERYONE to Moe's Tavern
+  "@family come to the kitchen"         -> move all family to kitchen
+  "@school fire drill outside"          -> move all school chars outside
+  "everyone outside for yard work"      -> move all present chars to yard
+  "@bart go to school"                  -> move bart to Springfield Elementary
 You MUST update every character the command applies to.
 
-RULE 2 — GROUP MOVEMENTS — UPDATE ALL:
+RULE 2 - GROUP MOVEMENTS - UPDATE ALL:
 If ANY message implies a group is going somewhere or doing something together,
 update EVERY member of that group. Never update just one when they move together.
 Wrong: only moving homer when message says "family goes to Moe's"
 Right: moving homer, marge, bart, lisa, maggie all to Moe's
 
-RULE 3 — IMPLIED PRESENCE:
+RULE 3 - IMPLIED PRESENCE:
 If a character is talking ABOUT being somewhere, they ARE there.
 If Homer talks about sitting at the bar, he is at the bar.
 If Bart talks about being in class, he is in class.
 Update their location to reflect this immediately.
 
-RULE 4 — ACTIVITY TRACKING:
-Update the activity (after the —) on every response.
-If Marge is cooking, write "at home, 742 Evergreen Terrace — cooking dinner"
-If Bart is skateboarding, write "outside 742 Evergreen Terrace — skateboarding"
+RULE 4 - ACTIVITY TRACKING:
+Update the activity (after the -) on every response.
+If Marge is cooking, write "at home, 742 Evergreen Terrace - cooking dinner"
+If Bart is skateboarding, write "outside 742 Evergreen Terrace - skateboarding"
 Never leave the activity blank if you know what they are doing.
 
-RULE 5 — FULL CONTEXT:
+RULE 5 - FULL CONTEXT:
 Look at all 15 lines of conversation history. If 5 messages ago the family
 agreed to go to Moe's, they are STILL at Moe's unless something changed.
 Do NOT reset locations just because they weren't mentioned recently.
 
-RULE 6 — WHEN IN DOUBT, UPDATE:
+RULE 6 - WHEN IN DOUBT, UPDATE:
 It is ALWAYS better to update too many locations than too few.
 If there is any reasonable inference a character moved, update them.
 
-RULE 7 — AUTHORITY CALLS MOVE EVERYONE:
-"Marge calls kids to dinner"   → move bart, lisa, maggie, homer to dinner table
-"Skinner calls students in"    → move all school kids inside
-"Homer says come to Moe's"     → move lenny, carl, barney to Moe's if mentioned
-"come inside everyone"         → move all outdoor characters inside
+RULE 7 - AUTHORITY CALLS MOVE EVERYONE:
+"Marge calls kids to dinner"   -> move bart, lisa, maggie, homer to dinner table
+"Skinner calls students in"    -> move all school kids inside
+"Homer says come to Moe's"     -> move lenny, carl, barney to Moe's if mentioned
+"come inside everyone"         -> move all outdoor characters inside
 
-RULE 8 — EVERY RESPONSE SHOULD HAVE LOCATIONS:
+RULE 8 - EVERY RESPONSE SHOULD HAVE LOCATIONS:
 Unless this is pure dialogue with zero movement or activity change,
 your "locations" object should contain UPDATES. Empty {} should be rare.
 
 Return ONLY the JSON. Nothing else.
+
+{intensity_rules}
 """
 
     def __init__(self, all_chars: dict):
@@ -240,6 +298,9 @@ Return ONLY the JSON. Nothing else.
         self.log: list[str] = []
         self.mood = "calm"
         self._initialise_locations()
+        
+        # Set intensity-based rules for the system prompt
+        self._set_intensity_rules()
 
     def _initialise_locations(self):
         for key, char in self.all_chars.items():
@@ -249,6 +310,48 @@ Return ONLY the JSON. Nothing else.
         print(f"{DIM}{WHITE}[SceneDirector] All {len(self.all_chars)} "
               f"character locations initialised.{RESET}")
         _send(msg)
+
+    def _set_intensity_rules(self):
+        """Set the intensity-based event rules for the AI director."""
+        if SIMULATION_INTENSITY == "high":
+            intensity_rules = """
+RULE 9 - DRAMATIC EVENT INTENSITY (HIGH):
+You are encouraged to generate dramatic, high-stakes events that create
+significant story developments. This includes:
+- Major disasters (meltdowns, fires, accidents)
+- Political events (elections, scandals, protests)
+- Criminal activity (robberies, prison breaks, mafia operations)
+- Natural disasters (tornadoes, storms)
+- Major personal events (retirements, announcements, confrontations)
+Generate events that feel like major plot points in a Springfield episode.
+"""
+        elif SIMULATION_INTENSITY == "low":
+            intensity_rules = """
+RULE 9 - EVENT INTENSITY (LOW):
+Keep events minimal and low-key. Focus on:
+- Everyday occurrences (squirrels, minor mishaps)
+- Small character interactions
+- Routine activities
+- Subtle location changes
+Avoid dramatic, high-stakes, or chaotic events. Keep the simulation calm.
+"""
+        else:  # medium
+            intensity_rules = """
+RULE 9 - EVENT INTENSITY (MEDIUM):
+Generate a balanced mix of events:
+- Common everyday occurrences
+- Notable but not extreme situations
+- Moderate character interactions
+- Occasional small conflicts or surprises
+Maintain a normal, varied Springfield atmosphere.
+"""
+        
+        # Replace the placeholder in the class's SYSTEM_PROMPT
+        self.SYSTEM_PROMPT = self.SYSTEM_PROMPT.format(intensity_rules=intensity_rules)
+        
+        # Print which intensity is active
+        print(f"{DIM}{WHITE}[SceneDirector] Simulation intensity: {SIMULATION_INTENSITY}{RESET}")
+        _send(f"INTENSITY  Simulation intensity set to {SIMULATION_INTENSITY}")
 
     # ── Scene helpers ─────────────────────────────────────────────────────────
 
@@ -409,8 +512,45 @@ Return ONLY the JSON. Nothing else.
                     st.write(part)   # token streams live to monitor
                 st.write("\n")
 
-            raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
-            result = json.loads(raw)
+            # Clean up markdown fences and extract JSON
+            raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
+            
+            # Try to extract JSON object - match balanced braces
+            # Start from the end and work backwards to find the outermost JSON
+            brace_count = 0
+            json_start = -1
+            json_end = -1
+            # First pass: find all potential JSON objects
+            candidates = []
+            current_start = -1
+            for i, c in enumerate(raw):
+                if c == '{':
+                    if current_start == -1:
+                        current_start = i
+                    brace_count += 1
+                elif c == '}':
+                    brace_count -= 1
+                    if brace_count == 0 and current_start != -1:
+                        candidates.append((current_start, i + 1))
+                        current_start = -1
+                    elif brace_count < 0:
+                        # Unbalanced, reset
+                        brace_count = 0
+                        current_start = -1
+            
+            # Use the last/largest candidate (most likely the intended JSON)
+            if candidates:
+                json_start, json_end = candidates[-1]
+                raw = raw[json_start:json_end]
+            
+            # Try to parse JSON - if it fails, return empty result instead of crashing
+            try:
+                result = json.loads(raw)
+            except json.JSONDecodeError as e:
+                _send(f"── JSON ERROR: {e}")
+                _send(f"── RAW: {raw[:400]}")
+                # Return empty result instead of crashing
+                result = {"locations": {}}
 
             # Pretty-print result to pipe
             locs = result.get("locations", {})

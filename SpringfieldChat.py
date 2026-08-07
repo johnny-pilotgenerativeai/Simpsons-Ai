@@ -60,6 +60,11 @@ import Grampa
 import YesGuy
 import DrHibbert
 import SlideshowMel
+# Springfield Mafia
+try:
+    import FatTony, Legs, Louie, JohnnyTightLips
+except ModuleNotFoundError:
+    FatTony = Legs = Louie = JohnnyTightLips = None
 # ── Load settings ────────────────────────────────────────────────────────────
 try:
     import settings as _cfg
@@ -172,10 +177,17 @@ SERVICES = {
     **_r("seacaptain",       "SeaCaptain",        SeaCaptain.character),
 }
 
+MAFIA = {
+    **_r("fattony",         "FatTony",          FatTony.character if FatTony else None),
+    **_r("legs",            "Legs",             Legs.character if Legs else None),
+    **_r("louie",           "Louie",            Louie.character if Louie else None),
+    **_r("johnnytightlips", "JohnnyTightLips",   JohnnyTightLips.character if JohnnyTightLips else None),
+}
+
 ALL_CHARS = {**FAMILY, **SPRINGFIELD, **PLANT_WORKERS,
              **NOTABLES, **FLANDERS, **SCHOOL,
              **KIDS, **KWIKMART, **ADULTS, **MEDIA,
-             **RETIREMENT, **RECURRING, **MEDICAL, **POLICE, **SERVICES}
+             **RETIREMENT, **RECURRING, **MEDICAL, **POLICE, **SERVICES, **MAFIA}
 
 NELSON_CHAR = nelson.character if _active("nelson") else None
 
@@ -364,8 +376,18 @@ def director_react(event: str, targets: list):
     WHITE = "\033[97m"
     BOLD  = "\033[1m"
     RESET = "\033[0m"
+    
+    # Clean up event text - remove any narrator prefixes or formatting artifacts
+    clean_event = event.strip()
+    if clean_event.lower().startswith("narrator:"):
+        clean_event = clean_event[10:].strip()  # Remove "narrator: " prefix
+    if clean_event.startswith('"') and clean_event.endswith('"'):
+        clean_event = clean_event[1:-1]  # Remove surrounding quotes
+    if clean_event.startswith("'") and clean_event.endswith("'"):
+        clean_event = clean_event[1:-1]  # Remove surrounding single quotes
+    
     print(f"\n{BOLD}{WHITE}{'─'*60}{RESET}")
-    print(f"{BOLD}{WHITE}  [Auto-Event] {event}{RESET}")
+    print(f"{BOLD}{WHITE}  [Auto-Event] {clean_event}{RESET}")
     print(f"{BOLD}{WHITE}{'─'*60}{RESET}")
     for key in targets:
         char = ALL_CHARS.get(key.lower())

@@ -115,6 +115,12 @@ CHARACTERS = {
     # ── Law & Order ────────────────────────────────────────────────────────
     "JudgeConstableHarm":      True,
     "JudgeConstableSnyder":   True,
+
+    # ── Springfield Mafia ─────────────────────────────────────────────
+    "FatTony":                 True,
+    "Legs":                   True,
+    "Louie":                  True,
+    "JohnnyTightLips":         True,
 }
 
 

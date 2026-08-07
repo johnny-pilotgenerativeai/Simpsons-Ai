@@ -52,6 +52,12 @@ try:
 except ModuleNotFoundError as e:
     print(f"[AutoSim] Optional character not found: {e} — continuing")
 
+# Springfield Mafia
+try:
+    import FatTony, Legs, Louie, JohnnyTightLips
+except ModuleNotFoundError as e:
+    print(f"[AutoSim] Mafia character not found: {e} — continuing")
+
 import character_base as _cb
 from character_base import get_scene
 from Bridge import send as bridge_send, scene_line, pause, WHITE, BOLD, DIM, RESET, YELLOW, CYAN, GREEN, RED
@@ -105,6 +111,8 @@ for mod, key in [
     (JudgeConstableHarm, "judgeconstableharm"), (JudgeConstableSnyder, "judgeconstablesnyder"),
     (Jimbo, "jimbo"), (Dolph, "dolph"), (Kearny, "kearny"),
     (Nina, "nina"), (Sherri, "sherri"), (Terri, "terri"),
+    # Springfield Mafia
+    (FatTony, "fattony"), (Legs, "legs"), (Louie, "louie"), (JohnnyTightLips, "johnnytightlips"),
 ]:
     try:
         ALL_CHARS[key] = mod.character
