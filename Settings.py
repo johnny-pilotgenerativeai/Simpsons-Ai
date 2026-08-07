@@ -59,6 +59,12 @@ CHARACTERS = {
     "Milhouse":                True,
     "Ralph":                   True,
     "Martin":                  True,
+    "Jimbo":                   True,
+    "Dolph":                   True,
+    "Kearny":                  True,
+    "Nina":                    True,
+    "Sherri":                  True,
+    "Terri":                   True,
 
     # ── Kwik-E-Mart ───────────────────────────────────────────────────────
     "Apu":                     True,
@@ -68,12 +74,12 @@ CHARACTERS = {
     "Barney":                  True,
     "Patty":                   True,
     "Selma":                   True,
-    "HansMoleman":             True,
+    "Hansmoleman":             True,
 
     # ── Media & Celebs ────────────────────────────────────────────────────
     "Krusty":                  True,
-    "SideshowBob":             True,
-    "KentBrockman":            True,
+    "Slideshowbob":            True,
+    "Kentbrockman":           True,
 
     # ── Retirement Castle ─────────────────────────────────────────────────
     "Grampa":                  True,
@@ -84,7 +90,7 @@ CHARACTERS = {
     "SqueakyVoicedTeen":       True,
     "YesGuy":                  True,
     "Smithers":                True,
-    "SideshowMel":             True,
+    "SlideshowMel":            True,
     "Gil":                     True,
 
     # ── Medical ───────────────────────────────────────────────────────────
@@ -98,6 +104,17 @@ CHARACTERS = {
     "ChiefWiggum":             True,
     "Eddie":                   True,
     "Lou":                     True,
+
+    # ── Sports & Entertainment ───────────────────────────────────────────
+    "DredrickTatum":           True,
+    "RainierWolfcastle":      True,
+
+    # ── Business & Administration ────────────────────────────────────────
+    "LindsayNaegle":           True,
+
+    # ── Law & Order ────────────────────────────────────────────────────────
+    "JudgeConstableHarm":      True,
+    "JudgeConstableSnyder":   True,
 }
 
 
@@ -119,3 +136,34 @@ NELSON_SENSITIVITY = "medium"
 # Warning: setting this high with many characters active can get very noisy!
 
 TRIGGER_DEPTH = 2
+
+
+# ── Simulation Intensity ──────────────────────────────────────────────────
+# Controls how dramatic the auto-events are during simulation
+# "low"    — only minor, everyday events (squirrels, spilled drinks, etc.)
+# "medium" — mix of everyday and notable events (default)
+# "high"   — includes major dramatic events (plant meltdowns, elections, disasters)
+SIMULATION_INTENSITY = "medium"
+
+
+# ── Memory Configuration ──────────────────────────────────────────────────────
+# 
+# MEMORY_WINDOW: Number of recent conversation exchanges to remember per character
+# (each exchange = 1 user message + 1 character response)
+# Set to 0 to disable sliding window memory
+MEMORY_WINDOW = 5
+
+# USE_CHROMA: Enable ChromaDB vector memory for semantic search of past conversations
+# Requires chromadb to be installed: pip install chromadb
+# When enabled, each character will store their conversations in a vector database
+# and retrieve relevant memories based on semantic similarity to current messages
+# Set to False to use only sliding window memory (no dependencies required)
+USE_CHROMA = False
+
+# CHROMA_PERSIST: If True, ChromaDB collections will persist to disk
+# Only relevant if USE_CHROMA is True
+CHROMA_PERSIST = False
+
+# CHROMA_PERSIST_PATH: Directory to store ChromaDB data
+# Only relevant if USE_CHROMA and CHROMA_PERSIST are True
+CHROMA_PERSIST_PATH = "./chroma_data"
