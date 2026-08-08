@@ -131,7 +131,7 @@ CHARACTERS = {
 # "low"    — only the most obvious disasters trigger him
 # "off"    — Nelson never auto-interjects (can still be chatted to directly)
 
-NELSON_SENSITIVITY = "medium"
+NELSON_SENSITIVITY = "high"
 
 
 # ── Chain reaction depth ──────────────────────────────────────────────────────
@@ -139,9 +139,10 @@ NELSON_SENSITIVITY = "medium"
 # 0 = no chain reactions at all
 # 1 = one level of reactions
 # 2 = two levels (default)
+# 3 = three levels (extreme)
 # Warning: setting this high with many characters active can get very noisy!
 
-TRIGGER_DEPTH = 2
+TRIGGER_DEPTH = 3
 
 
 # ── Simulation Intensity ──────────────────────────────────────────────────
@@ -149,7 +150,7 @@ TRIGGER_DEPTH = 2
 # "low"    — only minor, everyday events (squirrels, spilled drinks, etc.)
 # "medium" — mix of everyday and notable events (default)
 # "high"   — includes major dramatic events (plant meltdowns, elections, disasters)
-SIMULATION_INTENSITY = "medium"
+SIMULATION_INTENSITY = "high"
 
 
 # ── Memory Configuration ──────────────────────────────────────────────────────

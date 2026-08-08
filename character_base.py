@@ -8,6 +8,7 @@ and the Ollama chat loop.
 import importlib
 import re
 import ollama
+from collections import deque
 
 # ── Load settings ─────────────────────────────────────────────────────────────
 try:
@@ -16,11 +17,154 @@ try:
     MAX_TRIGGER_DEPTH = _cfg.TRIGGER_DEPTH
     _CHAR_ENABLED     = _cfg.CHARACTERS
     _NELSON_SENS      = _cfg.NELSON_SENSITIVITY
+    _MEMORY_WINDOW    = _cfg.MEMORY_WINDOW if hasattr(_cfg, 'MEMORY_WINDOW') else 5
+    _USE_CHROMA       = _cfg.USE_CHROMA if hasattr(_cfg, 'USE_CHROMA') else False
+    _CHROMA_PERSIST   = _cfg.CHROMA_PERSIST if hasattr(_cfg, 'CHROMA_PERSIST') else False
+    _CHROMA_PATH      = _cfg.CHROMA_PERSIST_PATH if hasattr(_cfg, 'CHROMA_PERSIST_PATH') else "./chroma_data"
 except ImportError:
     MODEL             = "llama3.2:latest"
     MAX_TRIGGER_DEPTH = 2
     _CHAR_ENABLED     = {}
     _NELSON_SENS      = "medium"
+    _MEMORY_WINDOW    = 5
+    _USE_CHROMA       = False
+    _CHROMA_PERSIST   = False
+    _CHROMA_PATH      = "./chroma_data"
+
+# ── Optional ChromaDB Memory ───────────────────────────────────────────────
+# ChromaDB will only be used if USE_CHROMA is True in Settings AND chromadb is installed
+CHROMA_AVAILABLE = False
+try:
+    if _USE_CHROMA:
+        import chromadb
+        from chromadb.utils import embedding_functions
+        CHROMA_AVAILABLE = True
+except ImportError:
+    pass
+
+
+# ── Memory Manager Classes ────────────────────────────────────────────────────
+
+class ConversationMemory:
+    """
+    Simple sliding window memory that keeps the last N conversation exchanges.
+    Each exchange = user message + assistant response.
+    """
+    def __init__(self, max_exchanges: int = 5, character_name: str = ""):
+        self.max_exchanges = max_exchanges
+        self.character_name = character_name
+        self.exchanges: deque = deque(maxlen=max_exchanges)
+    
+    def add(self, user_message: str, assistant_response: str):
+        """Add a new exchange to memory."""
+        self.exchanges.append({
+            "user": user_message,
+            "assistant": assistant_response
+        })
+    
+    def get_context(self, current_location: str = "") -> str:
+        """Get formatted context string from recent exchanges."""
+        if not self.exchanges:
+            return ""
+        
+        context_parts = []
+        for exchange in self.exchanges:
+            context_parts.append(f"User: {exchange['user'][:200]}")
+            context_parts.append(f"{self.character_name}: {exchange['assistant'][:200]}")
+        
+        context_str = "\n".join(context_parts[-6:])  # Last 6 lines (3 exchanges)
+        
+        if current_location:
+            context_str += f"\n[Current location: {current_location}]"
+        
+        return context_str
+
+
+class ChromaMemory:
+    """
+    Vector memory using ChromaDB for semantic search of past conversations.
+    Only used if ChromaDB is available and USE_CHROMA is True.
+    """
+    def __init__(self, character_name: str, collection_name: str = "simpsons_memory"):
+        self.character_name = character_name
+        self.collection_name = collection_name
+        self.client = None
+        self.collection = None
+        self.embedding_function = None
+        self._initialized = False
+    
+    def _init_client(self):
+        """Lazy initialization of ChromaDB client."""
+        if not CHROMA_AVAILABLE or self._initialized:
+            return
+        
+        try:
+            # Use persistent or in-memory client based on settings
+            if _CHROMA_PERSIST:
+                import os
+                os.makedirs(_CHROMA_PATH, exist_ok=True)
+                self.client = chromadb.PersistentClient(path=_CHROMA_PATH)
+            else:
+                self.client = chromadb.Client()
+                
+            self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
+            
+            # Create or get collection
+            self.collection = self.client.get_or_create_collection(
+                name=f"{self.collection_name}_{self.character_name}",
+                embedding_function=self.embedding_function
+            )
+            self._initialized = True
+        except Exception as e:
+            print(f"[ChromaDB] Failed to initialize for {self.character_name}: {e}")
+            self._initialized = False
+    
+    def add(self, text: str, metadata: dict = None):
+        """Add a memory entry."""
+        if not CHROMA_AVAILABLE or not _USE_CHROMA:
+            return
+        
+        self._init_client()
+        if not self._initialized or not self.collection:
+            return
+        
+        try:
+            # Use text as both ID and document for simplicity
+            # In production, use a proper ID scheme
+            import hashlib
+            doc_id = hashlib.md5(text.encode()).hexdigest()[:16]
+            
+            self.collection.add(
+                documents=[text],
+                metadatas=[metadata or {}],
+                ids=[doc_id]
+            )
+        except Exception as e:
+            print(f"[ChromaDB] Failed to add memory for {self.character_name}: {e}")
+    
+    def query(self, query_text: str, n_results: int = 3) -> str:
+        """Query relevant memories."""
+        if not CHROMA_AVAILABLE or not _USE_CHROMA:
+            return ""
+        
+        self._init_client()
+        if not self._initialized or not self.collection:
+            return ""
+        
+        try:
+            results = self.collection.query(
+                query_texts=[query_text],
+                n_results=n_results
+            )
+            
+            if results and results.get("documents") and results["documents"][0]:
+                memories = results["documents"][0]
+                return "\n".join(f"[Memory] {m[:300]}" for m in memories)
+        except Exception as e:
+            print(f"[ChromaDB] Failed to query memory for {self.character_name}: {e}")
+        
+        return ""
+
 
 # ── Character module registry ─────────────────────────────────────────────────
 CHARACTER_MODULES = {
@@ -57,12 +201,44 @@ CHARACTER_MODULES = {
     "barney":                  "Barney",
     "patty":                   "Patty",
     "selma":                   "Selma",
-    "hansmoleman":             "HansMoleman",
+    "hansmoleman":             "Hansmoleman",
     # Media & celebs
     "krusty":                  "Krusty",
-    "sideshowbob":             "SideshowBob",
-    "kentbrockman":            "KentBrockman",
+    "sideshowbob":             "Slideshowbob",
+    "kentbrockman":            "Kentbrockman",
     "gil":                     "Gil",
+    # Springfield Services
+    "chiefwiggum":             "ChiefWiggum",
+    "eddie":                   "Eddie",
+    "lou":                     "Lou",
+    "drnick":                  "DrNick",
+    "drhibbert":               "DrHibbert",
+    # Retirement Castle
+    "grampa":                  "Grampa",
+    "jasper":                  "Jasper",
+    "oldjewishman":            "OldJewishMan",
+    # Springfield Recurring
+    "squeakyvoicedteen":       "SqueakyVoicedTeen",
+    "yesguy":                  "YesGuy",
+    "smithers":                "Smithers",
+    "seacaptain":              "SeaCaptain",
+    # Slideshow Mel
+    "slideshowmel":            "SlideshowMel",
+    # Sports & Entertainment
+    "dredricktatum":           "DredrickTatum",
+    "rainierwolfcastle":      "RainierWolfcastle",
+    # Business & Administration
+    "lindsaynaegle":           "LindsayNaegle",
+    # Law & Order
+    "judgeconstableharm":      "JudgeConstableHarm",
+    "judgeconstablesnyder":   "JudgeConstableSnyder",
+    # Springfield Elementary kids
+    "jimbo":                   "Jimbo",
+    "dolph":                   "Dolph",
+    "kearny":                  "Kearny",
+    "nina":                    "Nina",
+    "sherri":                  "Sherri",
+    "terri":                   "Terri",
 }
 
 # ── Scene tags — normalise a location string to its main venue ────────────────
@@ -192,12 +368,22 @@ class SimpsonsCharacter:
     # Director callback — set by SpringfieldChat after ALL_CHARS is built
     _director_callback = None   # callable(char_key, char_name, response)
 
-    def __init__(self, name: str, system_prompt: str, color: str = "\033[0m"):
+    def __init__(self, name: str, system_prompt: str, color: str = "\033[0m", 
+                 memory_window: int = None, use_chroma: bool = None):
         self.name     = name
         self.color    = color
         self.reset    = "\033[0m"
         self.location = "Springfield"
         self.activity = ""
+        
+        # Memory settings - use global defaults if not specified
+        self.memory_window = memory_window if memory_window is not None else _MEMORY_WINDOW
+        self.use_chroma = use_chroma if use_chroma is not None else _USE_CHROMA
+        
+        # Initialize memory systems
+        self.conv_memory = ConversationMemory(max_exchanges=self.memory_window, character_name=self.name)
+        self.chroma_memory = ChromaMemory(self.name) if self.use_chroma and CHROMA_AVAILABLE else None
+        
         # Inject universal first-person rule into every character
         full_prompt = system_prompt + """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -248,13 +434,29 @@ UNIVERSAL RULES — APPLY TO EVERY SINGLE RESPONSE, NO EXCEPTIONS:
         ctx = (
             f"[INTERNAL STAGE DIRECTION — DO NOT SAY THIS ALOUD, "
             f"DO NOT NARRATE YOUR LOCATION, this is just so you know "
-            f"where you are: you are currently at {self.location}"
+            f"where you are: you are currently in {self.location}"
         )
         if self.activity:
             ctx += f", and you are {self.activity}"
         ctx += ". Never mention your location in brackets or parentheses "
         ctx += "in your response. Just speak naturally as your character.]"
         return ctx
+
+    # ── Memory management ──────────────────────────────────────────────────────
+    
+    def clear_memory(self):
+        """Clear all conversation memory."""
+        self.conv_memory.exchanges.clear()
+    
+    def get_memory_summary(self) -> str:
+        """Get a summary of what's in memory."""
+        if not self.conv_memory.exchanges:
+            return f"{self.name} has no recent conversation memory."
+        
+        count = len(self.conv_memory.exchanges)
+        last_user = self.conv_memory.exchanges[-1].get("user", "")[:50]
+        last_response = self.conv_memory.exchanges[-1].get("assistant", "")[:50]
+        return f"{self.name} has {count} exchanges in memory. Last: User='{last_user}...' -> '{last_response}...'"
 
     # ── Core chat ─────────────────────────────────────────────────────────────
 
@@ -267,9 +469,25 @@ UNIVERSAL RULES — APPLY TO EVERY SINGLE RESPONSE, NO EXCEPTIONS:
         ignore_location=True (used by events and scene scripts).
         """
         context = self.get_state_context()
+        
+        # Add memory context from recent conversations
+        memory_context = self.conv_memory.get_context(self.location)
+        
+        # Add ChromaDB memory if available
+        chroma_context = ""
+        if self.chroma_memory:
+            chroma_context = self.chroma_memory.query(message)
+        
+        # Combine all context
+        full_context = context
+        if memory_context:
+            full_context += f"\n[RECENT CONVERSATION CONTEXT]:\n{memory_context}"
+        if chroma_context:
+            full_context += f"\n[RELEVANT MEMORIES]:\n{chroma_context}"
+        
         self.messages.append({
             "role": "user",
-            "content": f"{context} [{sender} says]: {message}"
+            "content": f"{full_context} [{sender} says]: {message}"
         })
 
         MAX_RETRIES = 2
@@ -310,6 +528,20 @@ UNIVERSAL RULES — APPLY TO EVERY SINGLE RESPONSE, NO EXCEPTIONS:
                     return ""
 
         self.messages.append({"role": "assistant", "content": response})
+        
+        # Store this exchange in conversation memory
+        user_msg = f"[{sender} says]: {message}"
+        self.conv_memory.add(user_msg, response)
+        
+        # Store in ChromaDB memory if available
+        if self.chroma_memory:
+            full_exchange = f"{sender}: {message}\n{self.name}: {response}"
+            self.chroma_memory.add(full_exchange, {
+                "character": self.name,
+                "sender": sender,
+                "location": self.location
+            })
+        
         print()
 
         # Name-triggers — only co-located characters react

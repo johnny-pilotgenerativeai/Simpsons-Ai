@@ -167,10 +167,10 @@ def pause(secs: float = 0.6):
 #  SHARED CONSTANTS
 # ═══════════════════════════════════════════════════════════════
 
-CHILD_KEYS     = {"bart", "lisa", "maggie", "milhouse", "ralph",
-                  "martin", "rod", "todd", "nelson"}
-AUTHORITY_KEYS = {"marge", "homer", "ned", "skinner", "mrskrabappel",
-                  "mrlargo", "superintendentchalmers", "willie"}
+CHILD_KEYS     = ["bart", "lisa", "maggie", "milhouse", "ralph",
+                  "martin", "rod", "todd", "nelson"]
+AUTHORITY_KEYS = ["marge", "homer", "ned", "skinner", "mrskrabappel",
+                  "mrlargo", "superintendentchalmers", "willie"]
 
 
 # ═══════════════════════════════════════════════════════════════

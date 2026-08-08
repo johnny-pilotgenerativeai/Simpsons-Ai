@@ -67,8 +67,18 @@ def run_director(speaker_key: str, speaker_name: str, response: str):
 
 def director_react(event: str, targets: list):
     WHITE = "\033[97m"; BOLD = "\033[1m"; RESET = "\033[0m"
+    
+    # Clean up event text - remove any narrator prefixes or formatting artifacts
+    clean_event = event.strip()
+    if clean_event.lower().startswith("narrator:"):
+        clean_event = clean_event[10:].strip()  # Remove "narrator: " prefix
+    if clean_event.startswith('"') and clean_event.endswith('"'):
+        clean_event = clean_event[1:-1]  # Remove surrounding quotes
+    if clean_event.startswith("'") and clean_event.endswith("'"):
+        clean_event = clean_event[1:-1]  # Remove surrounding single quotes
+    
     print(f"\n{BOLD}{WHITE}{'─'*60}{RESET}")
-    print(f"{BOLD}{WHITE}  [Auto-Event] {event}{RESET}")
+    print(f"{BOLD}{WHITE}  [Auto-Event] {clean_event}{RESET}")
     print(f"{BOLD}{WHITE}{'─'*60}{RESET}")
     for key in targets:
         char = FAMILY.get(key.lower())
